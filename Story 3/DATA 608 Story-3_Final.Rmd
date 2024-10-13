@@ -1,0 +1,345 @@
+---
+title: "DATA 608 Story 3"
+author: "Fomba Kassoh"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+    toc: true      # Enables Table of Contents
+    toc_depth: 2   # Controls the depth of the TOC (e.g., section, subsection)
+    number_sections: true  # Optional: Numbers sections in the document
+    highlight: tango        # Optional: Syntax highlighting style
+---
+
+
+{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+<!-- Story -3 : Do stricter gun laws reduce firearm gun deaths? -->
+
+<!-- Instructions -->
+
+<!-- The CDC publishes firearm mortality for each State per 100,000 persons https://www.cdc.gov/nchs/pressroom/sosmap/firearm_mortality/firearm.htm. Each State' firearm control laws can be categorized as very strict to very lax. The purpose of this Story is to answer the question, " Do stricter firearm control laws help reduce firearm mortality?" -->
+
+<!-- For this assignment you will need to: -->
+
+<!-- Access the firearm mortality data from the CDC using an available API (https://open.cdc.gov/apis.html) -->
+
+<!-- Create a 5 point Likert scale categorizing gun control laws from most lax to strictest and assign each state to the most appropriate Likert bin. -->
+
+<!-- Determine wether stricter gun control laws result in reduced gun violence deaths -->
+
+<!-- Present your story using  heat maps -->
+
+## 1. Load the required libraries
+```{r}
+library(httr)
+library(tidyverse)
+library(jsonlite)
+library(plotly)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(tools)  # for toTitleCase()
+
+```
+## 2. Load and preview the data
+
+**Data Source**
+- 
+```{r}
+url <- "https://data.cdc.gov/resource/489q-934x.json"
+res <- GET(url)
+content <- fromJSON(content(res, "text", encoding = "UTF-8"))
+data <- as.data.frame(content)
+
+str(data)
+cat("\n", "\n")
+
+gun_law_data <- read.csv("strictest-gun-laws-by-state-2024.csv")
+str(gun_law_data)
+cat("\n", "\n")
+
+population <- read.csv("population.csv")
+str(population)
+cat("\n", "\n")
+```
+
+## 3. Prepare the mortality rate data
+```{r}
+# Step 1: Remove 'rate_district_of_columbia' column and filter out '2024 Q1' rows
+mort_rate <- data %>%
+  select(1:4, -rate_district_of_columbia, rate_alaska:rate_wyoming) %>%  # Select all except the 'rate_district_of_columbia' column
+  filter(cause_of_death == "Firearm-related injury" &
+         time_period == "12 months ending with quarter" &
+         rate_type == "Crude" &
+         year_and_quarter != "2024 Q1")  # Filter out the '2024 Q1' rows
+
+# Step 2: Convert all rate columns (state columns) to numeric
+mort_rate <- mort_rate %>%
+  mutate(across(starts_with("rate_"), as.numeric))  # Convert all 'rate_' columns to numeric
+
+# Step 3: Calculate the mean for each column and store it in a new dataset
+mean_data <- mort_rate %>%
+  select(-rate_type) %>%
+  summarise(across(starts_with("rate_"), mean, na.rm = TRUE))  # Calculate mean for all columns starting with 'rate_'
+
+# Step 4: Remove 'rate_' prefix from the state column names
+mean_data <- mean_data %>%
+  rename_with(~ str_replace(., "rate_", ""), starts_with("rate_"))  # Remove 'rate_' prefix
+
+# Step 5: Pivot the data to longer format, remove the 'rate_' prefix from state names, and rename the column
+data_long <- mort_rate %>%
+  select(1, rate_alaska:rate_wyoming) %>%  # Select year_and_quarter and all rate columns for states
+  pivot_longer(cols = rate_alaska:rate_wyoming, 
+               names_to = "states", 
+               values_to = "mortality_rate") %>%  # Rename the value column to 'mortality_rate'
+  mutate(states = str_replace_all(states, "rate_", ""),  # Remove 'rate_' prefix from state names
+         states = str_replace_all(states, "_", " "))     # Replace underscores with spaces
+
+# Step 6: Pivot the mean data to longer format and rename the column to 'mortality_rate'
+mean_data_long <- mean_data %>%
+  pivot_longer(cols = everything(), 
+               names_to = "states", 
+               values_to = "mortality_rate") %>%  # Rename the value column to 'mortality_rate'
+  mutate(states = str_replace_all(states, "_", " "))     # Replace underscores with spaces
+
+# Step 7: Print the head of the long data to check
+head(mean_data_long)
+```
+## 4. Prepare the gun law rating data
+```{r}
+# 1. First, mutate gun_law_data to include state abbreviations
+gun_law_data <- gun_law_data %>%
+  mutate(States = state.abb[match(state, state.name)])
+
+# 2. Ensure that the states column in both data frames is properly formatted
+mean_Mort_long_data <- mean_data_long %>%
+  mutate(states = tolower(states))  
+
+# 3. Ensure that the states column in both data frames is properly formatted
+gun_law_data <- gun_law_data %>%
+  mutate(state = tolower(state))
+
+# 4. Now proceed with the merge (join) by the state abbreviation
+merged_data <- merge(mean_Mort_long_data, gun_law_data, by.x = "states", by.y = "state")
+
+# Merge map data with the population for dots
+population <- population %>%
+  mutate(state_name = tolower(state)) %>%
+  select(-state)
+
+merged_data <- merged_data %>%
+  left_join(population, by = c("states" = "state_name"))
+
+head(merged_data)
+```
+
+## 5. Plot the Heatmap of US States Map
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(patchwork)  # For arranging plots side by side
+library(maps)
+library(scales)  # For rescaling
+
+# Load US map data
+states_map <- map_data("state") %>%
+  filter(!region %in% c("district of columbia", "puerto rico", "guam"))
+
+# Convert state names in the merged_data to lowercase to match with map data
+merged_data$States <- tolower(merged_data$States)
+
+# Filter out problematic names if necessary
+merged_data <- merged_data %>%
+  filter(!States %in% c("district of columbia", "puerto rico", "guam"))
+
+# Step 1: Standardize GunLawsStrengthRank using min-max normalization
+merged_data <- merged_data %>%
+  mutate(GunLawsStrengthRank_std = (GunLawsStrengthRank - min(GunLawsStrengthRank, na.rm = TRUE)) /
+                                   (max(GunLawsStrengthRank, na.rm = TRUE) - min(GunLawsStrengthRank, na.rm = TRUE)))
+
+# Step 2: Standardize mortality_rate using min-max normalization
+merged_data <- merged_data %>%
+  mutate(mortality_rate_std = (mortality_rate - min(mortality_rate, na.rm = TRUE)) /
+                              (max(mortality_rate, na.rm = TRUE) - min(mortality_rate, na.rm = TRUE)))
+
+# Merge map data with the merged_data based on state names
+map_data <- states_map %>%
+  left_join(merged_data, by = c("region" = "states"))
+```
+
+
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(maps)
+
+# Prepare map data
+states_map <- map_data("state")
+
+# Calculate centroids of states for plotting points
+state_centroids <- states_map %>%
+  group_by(region) %>%
+  summarize(long = mean(range(long)), lat = mean(range(lat)))
+
+# Merge centroids with the merged data
+merged_data_centroids <- state_centroids %>%
+  left_join(merged_data, by = c("region" = "states"))
+
+# Standardize GunLawsStrengthRank using min-max normalization
+
+merged_data <- merged_data %>%
+  mutate(GunLawsStrengthRank_std = (GunLawsStrengthRank - min(GunLawsStrengthRank, na.rm = TRUE)) /
+                                   (max(GunLawsStrengthRank, na.rm = TRUE) - min(GunLawsStrengthRank, na.rm = TRUE)))
+
+# Standardize mortality_rate using min-max normalization
+merged_data <- merged_data %>%
+  mutate(mortality_rate_std = (mortality_rate - min(mortality_rate, na.rm = TRUE)) /
+                              (max(mortality_rate, na.rm = TRUE) - min(mortality_rate, na.rm = TRUE)))
+
+# Merge map data with the gun law and mortality data for the map background
+map_data <- states_map %>%
+  left_join(merged_data, by = c("region" = "states"))
+
+# Rescale legends for GunLawsStrengthRank and Mortality Rate without affecting the plot data
+actual_gun_law_labels <- pretty(merged_data$GunLawsStrengthRank, n = 5)
+actual_mortality_rate_labels <- pretty(merged_data$mortality_rate, n = 5)
+
+# Accessible color palettes from RColorBrewer for the rescaled values
+gun_law_colors <- scale_fill_distiller(palette = "Blues", direction = 1, name = "Gun Law Rank\n(Lower is Stricter)",
+                                       labels = actual_gun_law_labels, 
+                                       breaks = scales::rescale(actual_gun_law_labels, to = range(merged_data$GunLawsStrengthRank_std)))
+
+mortality_colors <- scale_color_distiller(palette = "Oranges", direction = 1, name = "Mortality Rate",
+                                          labels = actual_mortality_rate_labels, 
+                                          breaks = scales::rescale(actual_mortality_rate_labels, to = range(merged_data$mortality_rate_std)))
+
+# Create the combined map with accessible color palettes and actual legend values
+combined_map <- ggplot() +
+  # Gun law strength represented by fill color using accessible palette
+  geom_polygon(data = map_data, aes(x = long, y = lat, group = group, fill = GunLawsStrengthRank_std), color = "white") +
+  # Firearm mortality rate represented by dots at state centroids with another accessible palette
+  geom_point(data = merged_data_centroids, aes(x = long, y = lat, color = mortality_rate_std), size = 3, alpha = 0.7) +
+  coord_fixed(1.3) +  # Fix aspect ratio
+  gun_law_colors +  # Accessible color scale for Gun Law Rank
+  mortality_colors +  # Accessible color scale for Mortality Rate
+  labs(title = "Gun Law Strength & Firearm Mortality Rate by State") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+
+# Show the plot
+print(combined_map)
+
+```
+
+
+
+## 6. Plot the scatter plot of mortality rate versus gun control ranking
+```{r}
+# Ensure that the states column in both data frames is properly formatted
+merged_data <- merged_data %>%
+  mutate(States = toupper(States))
+
+# Round population to the nearest 10 million for legend labels
+merged_data <- merged_data %>%
+  mutate(population_rounded = round(population / 1e7) * 10)  # Round to nearest 10 million
+
+# Scatter plot with regression line and dots sized by actual population
+ggplot(merged_data, aes(x = GunLawsStrengthRank, y = mortality_rate)) +
+  geom_point(aes(size = population), color = "#1a2309", alpha = 0.7) +  # Size of dot reflects actual population
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add regression line with confidence interval
+  geom_text(aes(label = States), vjust = -1, size = 3, color = "black") +  # Place state abbreviations at the centroid
+  scale_size_continuous(name = "Population (in millions)", range = c(3, 8), 
+                        breaks = seq(10, 40, by = 10),  # Use breaks to display 10 million increments
+                        labels = function(x) paste0(x, "M")) +  # Format labels to show as '10M', '20M', etc.
+  labs(#title = "Gun Law Strength vs Mortality Rate",
+       x = "Gun Law Strength Rank",
+       y = "Mortality Rate per 100k") +
+  theme_minimal() +  # Minimal theme
+  theme(
+    panel.grid = element_blank()   # Remove gridlines
+  )
+
+
+```
+
+
+```{r}
+# Create a custom color scale for the Gun Laws Gifford Grades
+grade_colors <- c("A" = "#1f77b4", "A-" = "#ff7f0e", "B+" = "#2ca02c", "B" = "#d62728", 
+                  "B-" = "#9467bd", "C+" = "#8c564b", "C" = "#e377c2", 
+                  "C-" = "#7f7f7f", "D+" = "#bcbd22", "F" = "#17becf")
+
+# Scatter plot with regression line, annotations, and horizontal legend for grades
+ggplot(merged_data, aes(x = GunLawsStrengthRank, y = mortality_rate, color = GunLawsGiffordGrade)) +
+  geom_point(size = 2) +  # Plot the points with color based on grade
+  geom_smooth(method = "lm", se = TRUE, color = "red") +  # Add regression line with confidence interval
+  geom_text(aes(label = GunLawsGiffordGrade), vjust = -0.5, hjust = 0.5, size = 3, color = "black") +  # Annotate with grades
+  labs(x = "Gun Law Strength Rank (Lower is Stricter)", y = "Mortality Rate per 100k") +
+  scale_color_manual(values = grade_colors, name = "Gifford Gun Law Grade") +  # Add the custom color scale
+  theme_minimal() +  # Minimal theme
+  theme(
+    panel.grid = element_blank(),  # Remove gridlines
+    legend.position = "bottom",  # Place the legend at the bottom
+    legend.direction = "horizontal",  # Set the legend to be horizontal
+    legend.title = element_text(size = 10),  # Adjust legend title size
+    legend.text = element_text(size = 8)  # Adjust legend text size
+  )
+
+
+
+```
+
+
+## 6. Plot the dot plot of mortality rate versus gun control ranking
+
+```{r}
+# Reorder the GunLawsGiffordGrade factor levels
+merged_data$GunLawsGiffordGrade <- factor(merged_data$GunLawsGiffordGrade, 
+                                          levels = c("A", "A-", "B+", "B",  "B-",  "C+",  "C",  "C-",  "D+",  "F"))
+
+# Create a consistent jitter effect for both points and labels
+jitter_pos <- position_jitter(width = 0.3, height = 0)
+
+# Swap the colors for "B" and "F" in the custom color set
+custom_colors <- c("A" = "#1f77b4",      # Blue
+                   "A-" = "#ff7f0e",     # Orange
+                   "B+" = "#2ca02c",     # Green
+                   "B" = "#17becf",      # Swapped: Cyan (was originally red)
+                   "B-" = "#9467bd",     # Purple
+                   "C+" = "#8c564b",     # Brown
+                   "C" = "#e377c2",      # Pink
+                   "C-" = "#7f7f7f",     # Gray
+                   "D+" = "#bcbd22",     # Yellow-green
+                   "F" = "#d62728")      # Swapped: Red (was originally cyan)
+
+# Create a jittered dot plot (strip plot) with state labels and swapped custom colors
+dot_plot <- ggplot(merged_data, aes(x = GunLawsGiffordGrade, y = mortality_rate, color = GunLawsGiffordGrade)) +
+  geom_jitter(aes(x = GunLawsGiffordGrade, y = mortality_rate), position = jitter_pos, alpha = 0.7) +  # Jitter the dots to separate them
+  geom_hline(yintercept = max(merged_data$mortality_rate[merged_data$GunLawsGiffordGrade == "A"]) + 0.5,  # Just above the highest A- dot
+             linetype = "dashed", color = "green", linewidth = 1.0) +  # Dashed green line, thinner size
+  scale_color_manual(values = custom_colors) +  # Use manually defined colors with swapped B and F
+  labs(# title = "Firearm Control Laws vs Mortality Rates",
+       x = "Giffords Gun Law Grade",
+       y = "Firearm Mortality Rate per 100k",
+       color = "Gun Law Grade") +
+  theme_minimal() +  # Clean theme
+  theme(legend.position = "none")  # Remove the legend as the color directly represents the grades
+
+# Print the dot plot
+print(dot_plot)
+
+
+
+```
