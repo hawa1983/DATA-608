@@ -1,0 +1,1162 @@
+---
+title: "Critical Minerals Analysis"
+output: html_document
+---
+
+# Load Necessary Libraries
+```{r setup, include=TRUE}
+library(tidyverse)
+```
+
+# Filter for Selected Minerals
+```{r filter-minerals, echo=TRUE}
+# List of selected minerals
+selected_minerals <- c(
+  "Aluminum", "Antimony", "Arsenic", "Barite", "Beryllium", "Bismuth", "Cerium", "Cesium", 
+  "Chromium", "Cobalt", "Dysprosium", "Erbium", "Europium", "Fluorspar", "Gadolinium", 
+  "Gallium", "Germanium", "Graphite", "Hafnium", "Holmium", "Indium", "Iridium", "Lanthanum", 
+  "Lithium", "Lutetium", "Magnesium", "Manganese", "Neodymium", "Nickel", "Niobium", 
+  "Palladium", "Platinum", "Praseodymium", "Rhodium", "Rubidium", "Ruthenium", "Samarium", 
+  "Scandium", "Tantalum", "Tellurium", "Terbium", "Thulium", "Tin", "Titanium", "Tungsten", 
+  "Vanadium", "Ytterbium", "Yttrium", "Zinc", "Zirconium"
+)
+
+# Load datasets (update paths as needed)
+reliance_data <- read.csv("MCS2024_Fig2_Net_Import_Reliance.csv")
+
+source_data <- read.csv("MCS2024_Fig3_Major_Import_Sources.csv") 
+
+end_use_data <- read.csv("MCS2024_T4_Critical_Minerals_End_Use.csv") 
+
+domestic_production_gap <- read.csv("MCS2024_T5_Critical_Minerals_Salient.csv")
+
+
+```
+
+
+## Illustrating strategic use of criticl menerals
+
+```{r critical-minerals-bubble-chart, echo=TRUE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Define data: Critical minerals and their strategic uses
+minerals_data <- data.frame(
+  Mineral = c(
+    "Aluminum", "Antimony", "Arsenic", "Barite", "Beryllium", "Bismuth", "Cerium",
+    "Cesium", "Chromium", "Cobalt", "Dysprosium", "Erbium", "Europium", "Fluorspar",
+    "Gadolinium", "Gallium", "Germanium", "Graphite", "Hafnium", "Holmium", "Indium",
+    "Iridium", "Lanthanum", "Lithium", "Lutetium", "Magnesium", "Manganese", 
+    "Neodymium", "Nickel", "Niobium", "Palladium", "Platinum", "Praseodymium", 
+    "Rhodium", "Rubidium", "Ruthenium", "Samarium", "Scandium", "Tantalum", 
+    "Tellurium", "Terbium", "Thulium", "Tin", "Titanium", "Tungsten", "Vanadium", 
+    "Ytterbium", "Yttrium", "Zinc", "Zirconium"
+  ),
+  Use_Category = c(
+    "Economy", "Defense", "Technology", "Energy", "Defense", "Technology", 
+    "Technology", "Research", "Economy", "Technology", "Technology", "Technology", 
+    "Technology", "Economy", "Technology", "Technology", "Technology", 
+    "Energy", "Defense", "Technology", "Technology", "Energy", "Energy", 
+    "Technology", "Technology", "Economy", "Economy", "Technology", "Economy", 
+    "Defense", "Economy", "Economy", "Technology", "Energy", "Technology", 
+    "Technology", "Defense", "Technology", "Technology", "Energy", "Technology", 
+    "Energy", "Economy", "Economy", "Economy", "Technology", "Technology", 
+    "Economy", "Technology", "Technology"
+  ),
+  Importance = c(
+    80, 50, 30, 40, 60, 30, 45, 20, 70, 65, 55, 50, 45, 60, 
+    50, 55, 40, 60, 35, 40, 50, 30, 60, 80, 25, 70, 70, 50, 
+    60, 45, 55, 60, 50, 30, 35, 40, 50, 45, 60, 35, 50, 45, 
+    60, 70, 50, 45, 55, 65, 60, 70
+  )
+)
+
+# Add jitter to separate overlapping points
+ggplot(minerals_data, aes(x = Use_Category, y = Importance, color = Use_Category)) +
+  geom_point(position = position_jitter(width = 0.4, height = 5), alpha = 0.7, size = 3) +  # Add jitter to y-axis
+  geom_text(aes(label = Mineral), position = position_jitter(width = 0.2, height = 2), 
+            vjust = 0, hjust = 1.5, size = 2, color = "black") +  # Jitter text for better readability
+  labs(
+    title = "Strategic Uses of Critical Minerals",
+    x = "Use Category",
+    y = "Relative Importance",
+    color = "Use Category"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    plot.title = element_text(size = 14, face = "bold")
+  )
+
+
+```
+
+
+## Applications of Critical Minerals
+
+### This plot highlights the primary applications of critical minerals.
+
+```{r mineral-applications, echo=TRUE}
+# Load the data (update the file path as needed)
+end_use_data <- read.csv("MCS2024_T4_Critical_Minerals_End_Use.csv")
+
+# Count the primary applications and create a bar chart
+end_use_data %>%
+  count(Primary.Applications, sort = TRUE) %>%
+  head(10) %>%
+  ggplot(aes(x = reorder(Primary.Applications, -n), y = n)) +
+  geom_bar(stat = "identity", fill = "#117733") +
+  coord_flip() +
+  labs(
+    title = "Primary Applications of Critical Minerals",
+    x = "Applications",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme_minimal() +
+  theme(
+   panel.grid.major = element_line(color = "gray100", size = 0.25),  # Fade out major gridlines
+   panel.grid.minor = element_blank()  # Remove minor gridlines
+  )
+
+```
+
+
+## Major Source Countries for Critical Minerals
+
+### This plot shows the number of critical minerals supplied by each country.
+
+```{r source-countries-colored-accessible, echo=TRUE}
+library(dplyr)
+library(ggplot2)
+
+# Load the CSV file
+commodity_count_data <- read.csv("MCS2024_Fig3_Major_Import_Sources.csv")
+
+colnames(commodity_count_data) <- c("Country", "Commodity_Count", "Map_Class")
+
+# Inspect the data to ensure it is loaded correctly
+head(commodity_count_data)
+
+# Define updated classifications for countries (including Switzerland and Philippines as Allies)
+country_classification <- list(
+  "Australia" = "Ally", "Canada" = "Ally", "United States" = "Ally", "Germany" = "Ally",
+  "France" = "Ally", "Japan" = "Ally", "Belgium" = "Ally", "United Kingdom" = "Ally",
+  "Austria" = "Ally", "South Korea" = "Ally", "Israel" = "Ally", "Norway" = "Ally",
+  "Switzerland" = "Ally", "Philippines" = "Ally", # Added Switzerland and Philippines as Allies
+  "China" = "Competitor", "Russia" = "Competitor", "Belarus" = "Competitor",
+  "India" = "Neutral", "Mexico" = "Neutral", "Brazil" = "Neutral", "South Africa" = "Neutral",
+  "Kazakhstan" = "Neutral", "Morocco" = "Neutral", "Malaysia" = "Neutral", "Vietnam" = "Neutral",
+  "Peru" = "Neutral", "Jamaica" = "Neutral", "Indonesia" = "Neutral", "Bolivia" = "Neutral",
+  "Ukraine" = "Ally", "Taiwan" = "Ally", "Poland" = "Ally", "Netherlands" = "Ally",
+  "Finland" = "Ally", "Italy" = "Ally", "Ireland" = "Ally", "Unknown" = "Unknown"
+)
+
+# Add classification column to the data
+commodity_count_data <- commodity_count_data %>%
+  mutate(
+    Classification = country_classification[Country] %||% "Unknown",
+    Classification = factor(Classification, levels = c("Ally", "Competitor", "Neutral", "Unknown")) # Convert to factor
+  )
+
+# Plot the data
+ggplot(commodity_count_data, aes(x = reorder(Country, -Commodity_Count), y = Commodity_Count, fill = Classification)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(
+    values = c("Ally" = "#117733", "Competitor" = "#CC6677", "Neutral" = "#88CCEE", "Unknown" = "gray"),
+    labels = c("Ally", "Competitor", "Neutral", "Unknown")
+  ) +
+  labs(
+    title = "Major Source Countries for Critical Minerals (Classification)",
+    x = "Country",
+    y = "Number of Critical Minerals Supplied",
+    fill = "Country Classification"
+  ) +
+  theme_minimal() +
+  theme(
+   panel.grid.major = element_line(color = "gray99", size = 0.25),  # Fade out major gridlines
+   panel.grid.minor = element_blank()  # Remove minor gridlines
+  )
+```
+
+## Range of Strategic Minerals by Allies, Competitors, and Neutral Countries
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Load the CSV file
+commodity_count_data <- read.csv("MCS2024_Fig3_Major_Import_Sources.csv")
+
+colnames(commodity_count_data) <- c("Country", "Commodity_Count", "Map_Class")
+
+# Define updated classifications for countries
+country_classification <- list(
+  "Australia" = "Ally", "Canada" = "Ally", "United States" = "Ally", "Germany" = "Ally",
+  "France" = "Ally", "Japan" = "Ally", "Belgium" = "Ally", "United Kingdom" = "Ally",
+  "Austria" = "Ally", "South Korea" = "Ally", "Israel" = "Ally", "Norway" = "Ally",
+  "Switzerland" = "Ally", "Philippines" = "Ally",
+  "China" = "Competitor", "Russia" = "Competitor", "Belarus" = "Competitor",
+  "India" = "Neutral", "Mexico" = "Neutral", "Brazil" = "Neutral", "South Africa" = "Neutral",
+  "Kazakhstan" = "Neutral", "Morocco" = "Neutral", "Malaysia" = "Neutral", "Vietnam" = "Neutral",
+  "Peru" = "Neutral", "Jamaica" = "Neutral", "Indonesia" = "Neutral", "Bolivia" = "Neutral",
+  "Ukraine" = "Ally", "Taiwan" = "Ally", "Poland" = "Ally", "Netherlands" = "Ally",
+  "Finland" = "Ally", "Italy" = "Ally", "Ireland" = "Ally", "Unknown" = "Unknown"
+)
+
+# Add classification column to the data
+commodity_count_data <- commodity_count_data %>%
+  mutate(
+    Classification = country_classification[Country] %||% "Unknown",
+    Classification = factor(Classification, levels = c("Ally", "Competitor", "Neutral", "Unknown")),
+    Map_Class = factor(Map_Class, levels = c("1 to 3", "4 to 6", "7 to 12", "19 to 24")) # Order the Map_Class levels
+  )
+
+# Aggregate data by Classification and Map_Class
+reliance_summary <- commodity_count_data %>%
+  group_by(Classification, Map_Class) %>%
+  summarize(Total_Commodities = sum(Commodity_Count), .groups = "drop")
+
+# Stacked bar chart
+ggplot(reliance_summary, aes(x = Classification, y = Total_Commodities, fill = Map_Class)) +
+  geom_bar(stat = "identity", position = "stack", color = "black", size = 0.6, 
+           aes(alpha = ifelse(Classification %in% c("Competitor", "Neutral"), 1, 0.3))) +
+  scale_fill_manual(
+    values = c("1 to 3" = "#F4A582", "4 to 6" = "#92C5DE", "7 to 12" = "#D5A6BD", "19 to 24" = "#66C2A5"),
+    breaks = c("1 to 3", "4 to 6", "7 to 12", "19 to 24") # Ensure legend order matches
+  ) +
+  scale_alpha_identity() +
+  labs(
+    title = "Reliance on Allies, Competitors, and Neutral Countries",
+    x = "Country Classification",
+    y = "Total Number of Critical Minerals Supplied",
+    fill = "Range of Minerals Supplied"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right", # Position legend for better visibility
+    panel.grid = element_blank() # Remove grid lines
+  )
+
+```
+
+## Geographic illustration of suppliers by category
+
+```{r}
+library(ggplot2)
+library(purrr)
+library(maps)
+library(dplyr)
+
+# World map data
+world <- map_data("world")
+
+# Add U.S. as an Importer to geo_data
+geo_data <- commodity_count_data %>%
+  bind_rows(data.frame(
+    Country = "USA",  # Ensure naming aligns with the `world` data
+    Commodity_Count = NA,  # U.S. is an importer, not a supplier
+    Map_Class = NA,
+    Classification = "Importer"
+  )) %>%
+  mutate(Classification = case_when(
+    is.na(Classification) & !is.na(Commodity_Count) ~ "Other Supplier",
+    TRUE ~ Classification
+  ))
+
+# Merge with world map data
+world_map <- world %>%
+  left_join(geo_data, by = c("region" = "Country")) %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Plot the map
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(
+    values = c(
+      "Importer" = "#F0C808",
+      "Ally" = "#117733",
+      "Competitor" = "#CC6677",
+      "Neutral" = "#88CCEE",
+      "Other Supplier" = "#9467BD",
+      "Not a Supplier" = "lightgrey"
+    )
+  ) +
+  labs(
+    title = "Global Suppliers of Critical Minerals with U.S. as Importer",
+    fill = "Country Classification"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),        # Remove axis text
+    axis.ticks = element_blank(),       # Remove axis ticks
+    axis.title = element_blank(),       # Remove axis labels
+    panel.grid = element_blank(),       # Remove grid lines
+    legend.position = "bottom"          # Move legend to the bottom
+  )
+
+```
+
+## Visualization of Top Minerals with the Highest Shortfall by Leading Supplier
+
+```{r domestic-shortfall, echo=TRUE}
+# 4. Strategic Gaps in Domestic Production
+# Clean numeric data and calculate shortfall
+domestic_production_gap <- domestic_production_gap %>%
+  mutate(
+    Primary_prod = as.numeric(gsub("[^0-9\\.]", "", Primary_prod)),
+    Apparent_Consuption = as.numeric(gsub("[^0-9\\.]", "", Apparent_Consuption)),
+    Shortfall = Apparent_Consuption - Primary_prod
+  ) %>%
+  filter(!is.na(Shortfall))
+
+# Plot with highlighted and faded bars
+domestic_production_gap %>%
+  arrange(desc(Shortfall)) %>%
+  head(10) %>%
+  ggplot(aes(x = reorder(Critical_mineral, -Shortfall), y = Shortfall)) +
+  geom_bar(
+    stat = "identity", 
+    aes(fill = ifelse(Critical_mineral %in% c("Zinc", "Manganese", "Chromium"), "Highlight", "Fade"))
+  ) +
+  scale_fill_manual(
+    values = c("Highlight" = "#CC6677", "Fade" = "lightgrey"),  # Highlighted and faded colors
+    guide = "none"  # Remove legend for fill
+  ) +
+  coord_flip() +
+  labs(
+    title = "Strategic Gaps in Domestic Production for Top Minerals",
+    x = "Critical Mineral",
+    y = "Shortfall (Metric Tons)"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),  # Remove grid lines
+    axis.text.y = element_text(size = 10)  # Adjust axis label size
+  )
+
+glimpse(domestic_production_gap) 
+```
+
+```{r domestic-shortfall-updated, echo=TRUE}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+library(scales)  # For formatting the axis labels
+
+# Load the data (update the file path as needed)
+domestic_production_gap <- read.csv("MCS2024_T5_Critical_Minerals_Salient.csv")
+
+# Clean the numeric data and calculate shortfall
+domestic_production_gap <- domestic_production_gap %>%
+  mutate(
+    Primary_prod = as.numeric(gsub("[^0-9\\.]", "", Primary_prod)),
+    Apparent_Consuption = as.numeric(gsub("[^0-9\\.]", "", Apparent_Consuption)),
+    Shortfall = Apparent_Consuption - Primary_prod
+  ) %>%
+  filter(!is.na(Shortfall))
+
+# Plot the top shortfalls
+domestic_production_gap %>%
+  arrange(desc(Shortfall)) %>%
+  head(10) %>%
+  ggplot(aes(x = reorder(Critical_mineral, -Shortfall), y = Shortfall)) +
+  geom_bar(stat = "identity", fill = "#CC6677") +
+  coord_flip() +
+  labs(
+    title = "Strategic Gaps in Domestic Production for Top Minerals",
+    x = "Critical Mineral",
+    y = "Shortfall (Metric Tons)"
+  ) +
+  scale_y_continuous(labels = label_comma()) +  # Format the y-axis with commas
+  theme_minimal()
+
+```
+
+
+
+```{r create-reliance-rank-fix, echo=TRUE}
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+
+# Debug: Inspect the column names
+print("Column names in reliance_data:")
+print(colnames(reliance_data))
+
+# Ensure correct column name
+# Replace with the actual column name if different
+correct_column_name <- "Major_Import_Sources_2019_2022" # Adjust this if necessary
+
+# Check if the column exists in the dataset
+if (!(correct_column_name %in% colnames(reliance_data))) {
+  stop(paste("Column", correct_column_name, "does not exist in reliance_data."))
+}
+
+# Break up countries and assign reliance rank
+reliance_data_expanded <- reliance_data %>%
+  mutate(
+    # Ensure the column is properly split into a list of countries
+    Countries = strsplit(as.character(.data[[correct_column_name]]), ",\\s*")
+  ) %>%
+  unnest(Countries) %>%  # Expand the list into individual rows
+  group_by(Commodity) %>%  # Group by the mineral/commodity
+  mutate(
+    reliance_rank = row_number()  # Rank the countries within each commodity group
+  ) %>%
+  ungroup()
+
+# View the resulting dataset
+glimpse(reliance_data_expanded)
+
+```
+
+## Import Reliance Rack and Frequency of Countries in each Rank
+
+```{r bar-charts-by-rank-accessible-fixed, echo=TRUE}
+# Load necessary libraries
+library(dplyr)
+library(ggplot2)
+
+# Calculate the proportion of reliance ranks for each country
+country_reliance_rank <- reliance_data_expanded %>%
+  group_by(Countries, reliance_rank) %>%  # Group by country and reliance rank
+  summarize(count = n(), .groups = "drop") %>%  # Count occurrences of each rank per country
+  group_by(Countries) %>%
+  mutate(proportion = count / sum(count)) %>%  # Calculate proportion of each rank per country
+  ungroup()
+
+# Ensure reliance_rank is treated as a factor
+country_reliance_rank <- country_reliance_rank %>%
+  mutate(reliance_rank = as.factor(reliance_rank))  # Convert reliance_rank to a factor
+
+# Calculate the number of minerals each country is involved with
+country_counts <- country_reliance_rank %>%
+  group_by(Countries) %>%
+  summarize(total_minerals = sum(count), .groups = "drop")  # Total count of minerals per country
+
+# Reorder countries based on the total reliance count
+country_order <- country_counts %>%
+  arrange(desc(total_minerals)) %>%
+  pull(Countries)  # Extract countries ordered by total minerals
+
+# Update `country_reliance_rank` with reordered country levels
+country_reliance_rank <- country_reliance_rank %>%
+  mutate(Countries = factor(Countries, levels = country_order))
+
+# Prepare data: Calculate the frequency of each country in each reliance rank
+ranked_country_frequencies <- country_reliance_rank %>%
+  group_by(reliance_rank, Countries) %>%
+  summarize(frequency = sum(count), .groups = "drop")  # Count occurrences of each rank for each country
+
+# Accessible color palette
+accessible_colors <- c(
+  "1" = "#117733",        # Dark green
+  "4" = "#CC6677",        # Reddish
+  "2" = "#88CCEE",        # Light blue
+  "3" = "#999999"         # Gray
+)
+
+# Create bar charts, one for each rank
+ggplot(ranked_country_frequencies, aes(x = reorder(Countries, -frequency), y = frequency, fill = reliance_rank)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~ reliance_rank, scales = "free_y") +  # Create a facet for each rank
+  labs(
+    title = "Frequency of Countries in Each Reliance Rank (Top Four Ranks)",
+    x = "Country",
+    y = "Frequency",
+    fill = "Reliance Rank"
+  ) +
+  scale_fill_manual(values = accessible_colors) +  # Use the accessible color palette
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 5, angle = 90, hjust = 1, vjust = 1),  # Adjust alignment for better readability
+    axis.text.y = element_text(size = 10),
+    strip.text = element_text(size = 10, face = "bold"),
+    legend.position = "none",  # Hide legend as reliance rank is already shown in facets
+    panel.grid.major = element_line(color = "gray99", size = 0.25),  # Fade out major gridlines
+    panel.grid.minor = element_blank()  # Remove minor gridlines
+    # panel.grid = element_blank()  # Remove all gridlines
+
+  )
+
+
+
+```
+
+
+
+
+
+```{r reliance-rank-treemap, echo=TRUE}
+# Load necessary libraries
+library(treemapify)
+library(ggplot2)
+
+# Prepare data for treemap
+treemap_data <- country_reliance_rank %>%
+  group_by(Countries) %>%
+  mutate(
+    total_minerals = sum(count),
+    reliance_rank = as.factor(reliance_rank)
+  ) %>%
+  ungroup()
+
+# Create the treemap
+ggplot(treemap_data, aes(
+  area = total_minerals,
+  fill = reliance_rank,
+  label = paste(Countries, "(", total_minerals, ")", sep = "")
+)) +
+  geom_treemap() +
+  geom_treemap_text(
+    colour = "white",
+    place = "centre",
+    grow = TRUE
+  ) +
+  scale_fill_brewer(palette = "Set3", name = "Reliance Rank") +
+  labs(
+    title = "Treemap of Reliance Ranks by Country",
+    subtitle = "Size represents the number of minerals; color shows reliance rank proportion"
+  ) +
+  theme_minimal()
+```
+
+
+```{r bubble-chart-visualization, echo=TRUE}
+# Create a bubble chart
+reliance_data %>%
+  ggplot(aes(
+    x = Net_Import_Reliance_pct_2023,
+    y = reorder(Commodity, Net_Import_Reliance_pct_2023),
+    size = Net_Import_Reliance_pct_2023,
+    color = Net_Import_Reliance_pct_2023
+  )) +
+  geom_point(alpha = 0.7, size = 1.5) +
+  scale_color_gradient(low = "green", high = "red") +
+  labs(
+    title = "U.S. Net Import Reliance on Critical Minerals (2023)",
+    x = "Net Import Reliance (%)",
+    y = "Critical Mineral",
+    size = "Reliance (%)",
+    color = "Reliance (%)"
+  ) +
+  theme_minimal() +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 5),  # Reduce y-axis font size
+    panel.grid.major = element_blank(),   # Remove major gridlines
+    panel.grid.minor = element_blank(),   # Remove minor gridlines
+    panel.background = element_blank()    # Ensure no background grid
+  )
+
+```
+
+```{r lollipop-chart-visualization, echo=TRUE}
+# Create a customized lollipop chart
+reliance_data %>%
+  ggplot(aes(x = Net_Import_Reliance_pct_2023, y = reorder(Commodity, Net_Import_Reliance_pct_2023))) +
+  geom_segment(aes(xend = 0, yend = Commodity), color = "gray") +
+  geom_point(aes(color = Net_Import_Reliance_pct_2023), size = 1) +
+  scale_color_gradient(low = "green", high = "red") +
+  labs(
+    title = "Lollipop Chart of U.S. Net Import Reliance on Critical Minerals (2023)",
+    x = "Net Import Reliance (%)",
+    y = "Critical Mineral",
+    color = "Reliance (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 5),  # Reduce y-axis font size
+    panel.grid.major = element_blank(),   # Remove major gridlines
+    panel.grid.minor = element_blank(),   # Remove minor gridlines
+    panel.background = element_blank()    # Ensure no background grid
+  )
+
+```
+
+
+
+
+## Major Source Countries for Critical Minerals
+### This plot shows the number of critical minerals supplied by each country.
+
+```{r source-countries, echo=TRUE}
+# Load the data (update the file path as needed)
+source_data <- read.csv("MCS2024_Fig3_Major_Import_Sources.csv")
+
+# Create a bar chart for countries supplying critical minerals
+source_data %>%
+  arrange(desc(Commodity_Count)) %>%
+  ggplot(aes(x = reorder(Country, -Commodity_Count), y = Commodity_Count)) +
+  geom_bar(stat = "identity", fill = "#CC6677") +
+  coord_flip() +
+  labs(
+    title = "Major Source Countries for Critical Minerals",
+    x = "Country",
+    y = "Number of Critical Minerals Supplied"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+end_use_data <- read.csv("MCS2024_T4_Critical_Minerals_End_Use.csv") 
+reliance_data <- read.csv("MCS2024_Fig2_Net_Import_Reliance.csv")
+
+cat("\nMajor Import Source\n")
+glimpse(commodity_count_data)
+
+cat("\nDomestic Production Gap\n")
+glimpse(domestic_production_gap)
+
+cat("\nCritical Minerals End Use\n")
+glimpse(end_use_data)
+
+cat("\nNet Import Reliance\n")
+glimpse(reliance_data)
+```
+
+
+
+
+
+
+Here is the solution to create **four new visualizations** for your conclusion based on the provided data frames, ensuring they are distinct from the previous visualizations. I will use the `ggplot2` package to highlight key insights.
+
+---
+
+## Visualization of Top Minerals with the Highest Shortfall by Leading Supplier
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(janitor)
+
+# Clean column names to ensure consistency
+domestic_production_gap <- domestic_production_gap %>%
+  clean_names() # Standardizes all column names to lowercase with underscores
+
+# Replace NA in leading_source_country with "Unknown"
+domestic_production_gap <- domestic_production_gap %>%
+  mutate(leading_source_country = ifelse(is.na(leading_source_country), "Unknown", leading_source_country))
+
+# Verify the correct column name
+top_shortfall <- domestic_production_gap %>%
+  arrange(desc(shortfall)) %>%   # Use cleaned column names (all lowercase)
+  slice(1:10)
+
+# Plotting
+ggplot(top_shortfall, aes(x = reorder(critical_mineral, -shortfall), y = shortfall, fill = leading_source_country)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Top Minerals with the Highest Shortfall",
+    subtitle = "Highlighting Leading Suppliers",
+    x = "Critical Mineral",
+    y = "Shortfall (Metric Tons)",
+    fill = "Leading Supplier"
+  ) +
+  theme_minimal()
+
+
+```
+
+### Visualization of Net Import Reliance Distribution
+
+This shows the distribution of `Net_Import_Reliance_pct_2023` for critical minerals.
+
+```{r}
+ggplot(reliance_data, aes(x = Net_Import_Reliance_pct_2023)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  labs(
+    title = "Distribution of Net Import Reliance for Critical Minerals",
+    x = "Net Import Reliance (%)",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+```
+
+### Visualization of Top Supplying Countries by Mineral Count and Classification
+
+This highlights countries supplying the most minerals categorized as **Ally**, **Competitor**, or **Neutral**.
+
+```{r}
+top_countries <- commodity_count_data %>%
+  arrange(desc(Commodity_Count)) %>%
+  slice(1:10)
+
+ggplot(top_countries, aes(x = reorder(Country, Commodity_Count), y = Commodity_Count, fill = Classification)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(values = c("Ally" = "green", "Competitor" = "red", "Neutral" = "blue")) +
+  labs(
+    title = "Top Supplying Countries by Mineral Count",
+    x = "Country",
+    y = "Number of Critical Minerals Supplied",
+    fill = "Country Classification"
+  ) +
+  theme_minimal()
+```
+
+## Conclusion Slide
+
+```{r}
+# Load Required Libraries
+library(ggplot2)
+library(dplyr)
+library(janitor)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+
+# Step 1: Data Cleaning ---------------------------------------------------
+# Clean column names and net_import_reliance
+domestic_production_gap <- domestic_production_gap %>% 
+  clean_names() %>%
+  mutate(
+    net_import_reliance = as.numeric(gsub("[<>]", "", net_import_reliance)),
+    net_import_reliance = ifelse(is.na(net_import_reliance), 0, net_import_reliance),
+    shortfall = ifelse(is.na(shortfall), 0, shortfall),
+    leading_source_country = ifelse(is.na(leading_source_country), "Unknown", leading_source_country)
+  )
+
+# Step 2: Aggregate Data --------------------------------------------------
+country_summary <- domestic_production_gap %>%
+  group_by(leading_source_country) %>%
+  summarize(
+    total_shortfall = sum(shortfall, na.rm = TRUE),
+    average_reliance = mean(net_import_reliance, na.rm = TRUE)
+  )
+
+# Step 3: Prepare World Map -----------------------------------------------
+# Load world map
+world <- map_data("world")
+
+# Add the U.S. as Importer and classify other suppliers
+geo_data <- country_summary %>%
+  bind_rows(data.frame(
+    leading_source_country = "USA",
+    total_shortfall = NA,
+    average_reliance = NA,
+    Classification = "Importer"
+  )) %>%
+  mutate(
+    Classification = case_when(
+      leading_source_country %in% c("China", "Russia") ~ "Competitor",
+      leading_source_country %in% c("Canada", "Australia") ~ "Ally",
+      leading_source_country %in% c("Brazil", "South Africa") ~ "Other Supplier",
+      is.na(Classification) ~ "Other Supplier",
+      TRUE ~ Classification
+    )
+  )
+
+# Merge with world map data
+world_map <- world %>%
+  left_join(geo_data, by = c("region" = "leading_source_country")) %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Add longitude/latitude centroids for bubbles
+bubble_data <- world_map %>%
+  group_by(region) %>%
+  summarize(
+    long = mean(long, na.rm = TRUE),
+    lat = mean(lat, na.rm = TRUE),
+    average_reliance = mean(average_reliance, na.rm = TRUE)
+  ) %>%
+  filter(!is.na(average_reliance))
+
+# Step 4: Plot the Map with Bubbles ---------------------------------------
+ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  # Country polygons
+  geom_polygon(color = "white") +
+  # Add bubbles (remove size legend explicitly)
+  geom_point(data = bubble_data, aes(x = long, y = lat, color = average_reliance, size = average_reliance),
+             inherit.aes = FALSE, show.legend = c(color = TRUE, size = FALSE)) +
+  # Scales
+  scale_fill_manual(
+    values = c(
+      "Importer" = "#F0C808",
+      "Ally" = "#117733",
+      "Competitor" = "#CC6677",
+      "Neutral" = "#88CCEE",
+      "Other Supplier" = "#9467BD",
+      "Not a Supplier" = "lightgrey"
+    ),
+    name = "Country Classification"
+  ) +
+  scale_color_viridis_c(name = "Average Net Import\nReliance (%)") +
+  # Labels
+  labs(
+    title = "Global Suppliers of Critical Minerals with U.S. as Importer",
+    subtitle = "Classified by Role and Net Import Reliance",
+    caption = "Data Source: USGS Mineral Commodity Summaries 2024"
+  ) +
+  # Theme adjustments
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),        
+    axis.ticks = element_blank(),       
+    axis.title = element_blank(),       
+    panel.grid = element_blank(),       
+    legend.position = "right"
+  )
+
+
+
+
+```
+
+## Transition Slides
+
+```{r}
+# Load Libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(maps)
+library(gridExtra)
+library(grid)
+library(ggrepel)
+
+# Simulated Data ----------------------------------------------------------
+# Bar Chart Data (Applications of Critical Minerals)
+bar_data <- data.frame(
+  Category = c("Aerospace &\n Defense", "Batteries & Energy", 
+               "Catalysts & Industrial", "Electronics & Optics",
+               "Magnets & Lasers", "Steelmaking &\n Alloys"),
+  Count = c(8, 12, 9, 11, 7, 10),
+  Color = c("#1f78b4", "#ff7f00", "#e31a1c", "#6a3d9a", "#33a02c", "#b2df8a")
+)
+
+# World Map Data for Supplier Classification
+world <- map_data("world")
+supplier_regions <- data.frame(
+  region = c("USA", "China", "Russia", "Australia", "Brazil", "India"),
+  Classification = c("Ally", "Competitor", "Competitor", "Ally", "Other Supplier", "Neutral")
+)
+
+# Merge Supplier Data with Map
+world_map <- world %>%
+  left_join(supplier_regions, by = "region") %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Chemical Symbols for Scattering
+set.seed(123) # Reproducibility
+chemical_symbols <- data.frame(
+  symbol = sample(c("Al", "Sb", "As", "B", "Be", "Bi", "Ce", "Cs", "Co", 
+                    "Cr", "Cu", "Dy", "Er", "Eu", "F", "Gd", "Ga", "Ge",
+                    "Hf", "Ho", "In", "Ir", "La", "Li", "Mg", "Mn", "Nd", 
+                    "Ni", "Nb", "Pd", "Pt", "Pr", "Rh", "Ru", "Sm", "Sc",
+                    "Ta", "Te", "Tb", "Tm", "Sn", "Ti", "W", "V", "Yb", 
+                    "Y", "Zn", "Zr"), 50, replace = TRUE),
+  x = runif(50, 0, 1),
+  y = runif(50, 0, 1),
+  color = sample(colors(), 50)
+)
+
+# Plot 1: Bar Chart -------------------------------------------------------
+bar_chart <- ggplot(bar_data, aes(x = Category, y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_text(aes(label = Category, size = Count, color = Color), 
+            position = position_stack(vjust = 1.05), 
+            hjust = 0.5, fontface = "bold") +
+  scale_fill_manual(values = bar_data$Color) +
+  scale_color_identity() +
+  scale_size_continuous(range = c(3, 10)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Plot 2: World Map -------------------------------------------------------
+map_plot <- ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c(
+    "Ally" = "#117733",
+    "Competitor" = "#CC6677",
+    "Neutral" = "#88CCEE",
+    "Other Supplier" = "#9467BD",
+    "Not a Supplier" = "lightgrey"
+  )) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Overlay Chemical Symbols ------------------------------------------------
+scatter_plot <- ggplot() +
+  geom_text(data = chemical_symbols, 
+            aes(x = x, y = y, label = symbol, color = color), 
+            size = 6, fontface = "bold") +
+  scale_color_identity() +
+  theme_void()
+
+# Combine Plots -----------------------------------------------------------
+grid.arrange(
+  bar_chart,
+  map_plot,
+  scatter_plot,
+  ncol = 1,
+  heights = c(3, 3, 1)
+)
+
+
+```
+
+```{r}
+# Load Libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(maps)
+library(gridExtra)
+library(grid)
+library(ggrepel)
+
+# Simulated Data ----------------------------------------------------------
+# Bar Chart Data (Applications of Critical Minerals)
+bar_data <- data.frame(
+  Category = c("Aerospace &\nDefense", "Batteries & Energy", 
+               "Catalysts & Industrial", "Electronics & Optics",
+               "Magnets & Lasers", "Steelmaking &\nAlloys"),
+  Count = c(8, 12, 9, 11, 7, 10),
+  Color = c("#1f78b4", "#ff7f00", "#e31a1c", "#6a3d9a", "#33a02c", "#b2df8a")
+)
+
+# World Map Data for Supplier Classification
+world <- map_data("world")
+supplier_regions <- data.frame(
+  region = c("USA", "China", "Russia", "Australia", "Brazil", "India"),
+  Classification = c("Ally", "Competitor", "Competitor", "Ally", "Other Supplier", "Neutral")
+)
+
+# Merge Supplier Data with Map
+world_map <- world %>%
+  left_join(supplier_regions, by = "region") %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Chemical Symbols for Scattering (Now scaled to the map area)
+set.seed(123) # Reproducibility
+chemical_symbols <- data.frame(
+  symbol = sample(c("Al", "Sb", "As", "B", "Be", "Bi", "Ce", "Cs", "Co", 
+                    "Cr", "Cu", "Dy", "Er", "Eu", "F", "Gd", "Ga", "Ge",
+                    "Hf", "Ho", "In", "Ir", "La", "Li", "Mg", "Mn", "Nd", 
+                    "Ni", "Nb", "Pd", "Pt", "Pr", "Rh", "Ru", "Sm", "Sc",
+                    "Ta", "Te", "Tb", "Tm", "Sn", "Ti", "W", "V", "Yb", 
+                    "Y", "Zn", "Zr"), 50, replace = TRUE),
+  long = runif(50, -180, 180),
+  lat = runif(50, -60, 80),
+  color = sample(colors(), 50)
+)
+
+# Plot 1: Bar Chart -------------------------------------------------------
+bar_chart <- ggplot(bar_data, aes(x = Category, y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_text(aes(label = gsub("&", "and", Category), color = Color, size = Count), 
+            position = position_stack(vjust = 1.4), 
+            fontface = "bold", hjust = 0.5) +
+  scale_fill_manual(values = bar_data$Color) +
+  scale_color_identity() +
+  scale_size_continuous(range = c(3, 8)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Plot 2: World Map -------------------------------------------------------
+map_plot <- ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c(
+    "Ally" = "#117733",
+    "Competitor" = "#CC6677",
+    "Neutral" = "#88CCEE",
+    "Other Supplier" = "#9467BD",
+    "Not a Supplier" = "lightgrey"
+  )) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Plot 3: Chemical Symbols Scattered --------------------------------------
+scatter_plot <- ggplot() +
+  geom_text(data = chemical_symbols, 
+            aes(x = long, y = lat, label = symbol, color = color), 
+            size = 5, fontface = "bold") +
+  scale_color_identity() +
+  theme_void()
+
+# Combine Plots -----------------------------------------------------------
+grid.arrange(
+  bar_chart,
+  map_plot,
+  scatter_plot,
+  ncol = 1,
+  heights = c(3, 3, 3)
+)
+
+```
+
+```{r}
+# Load Libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(gridExtra)
+library(grid)
+library(maps)
+library(ggrepel)
+
+# Simulated Data ----------------------------------------------------------
+# Data for Sources - Bar Chart
+sources_data <- data.frame(
+  Source = c("Recycling", "Domestic Mining", "Imports"),
+  Count = c(15, 10, 25),
+  Color = c("#1f78b4", "#33a02c", "#e31a1c")
+)
+
+# World Map Data for Supplier Roles
+world <- map_data("world")
+supplier_roles <- data.frame(
+  region = c("USA", "China", "Russia", "Australia", "Brazil", "India"),
+  Classification = c("Ally", "Competitor", "Competitor", "Ally", "Other Supplier", "Neutral")
+)
+
+# Merge Supplier Data with Map
+world_map <- world %>%
+  left_join(supplier_roles, by = "region") %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Scatter Chemical Symbols
+set.seed(123)
+chemical_symbols <- data.frame(
+  symbol = sample(c("Al", "Co", "Ni", "Li", "Mn", "Cr", "Zn", "Be", "Nd", "W", "Y", "Pt", "Nb"), 30, replace = TRUE),
+  x = runif(30, 0, 1),
+  y = runif(30, 0, 1),
+  color = sample(colors(), 30)
+)
+
+# Plot 1: Bar Chart - Sources --------------------------------------------
+sources_plot <- ggplot(sources_data, aes(x = Source, y = Count, fill = Source)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = Source, size = Count), position = position_stack(vjust = 0.9), 
+            color = "white", fontface = "bold") +
+  scale_fill_manual(values = sources_data$Color) +
+  scale_size_continuous(range = c(3, 8)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Plot 2: World Map - Supplier Roles --------------------------------------
+map_plot <- ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c(
+    "Ally" = "#117733",
+    "Competitor" = "#CC6677",
+    "Neutral" = "#88CCEE",
+    "Other Supplier" = "#9467BD",
+    "Not a Supplier" = "lightgrey"
+  )) +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+# Plot 3: Scatter Symbols - Conclusion ------------------------------------
+scatter_plot <- ggplot() +
+  geom_text(data = chemical_symbols, aes(x = x, y = y, label = symbol, color = color),
+            size = 6, fontface = "bold") +
+  scale_color_identity() +
+  theme_void()
+
+# Combine All Plots -------------------------------------------------------
+grid.arrange(
+  sources_plot,       # Top Section: Sources
+  map_plot,           # Middle Section: Suppliers & Vulnerabilities
+  scatter_plot,       # Bottom Section: Conclusion
+  ncol = 1,
+  heights = c(2, 3, 2)
+)
+
+
+```
+
+```{r}
+# Load Libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(maps)
+library(gridExtra)
+library(grid)
+library(ggrepel)
+
+# Simulated Data ----------------------------------------------------------
+# Bar Chart Data (Applications of Critical Minerals)
+bar_data <- data.frame(
+  Category = c("Aerospace & Defense", "Batteries & Energy", 
+               "Catalysts & Industrial", "Electronics & Optics",
+               "Magnets & Lasers", "Steelmaking & Alloys"),
+  Count = c(60, 88, 75, 90, 82, 75),
+  Color = c("#6a3d9a", "#ff7f00", "#1f78b4", "#33a02c", "#e31a1c", "#b2df8a"),
+  x = c(1, 2, 3, 4, 5, 6)
+)
+
+# World Map Data for Supplier Classification
+world <- map_data("world")
+supplier_regions <- data.frame(
+  region = c("USA", "China", "Russia", "Australia", "Brazil", "India"),
+  Classification = c("Ally", "Competitor", "Competitor", "Ally", "Other Supplier", "Neutral")
+)
+
+# Merge Supplier Data with Map
+world_map <- world %>%
+  left_join(supplier_regions, by = "region") %>%
+  mutate(Classification = replace_na(Classification, "Not a Supplier"))
+
+# Scatter Words -----------------------------------------------------------
+set.seed(123) # For reproducibility
+words_data <- data.frame(
+  word = c("Applications", "Supply", "Demand", "Imbalance"),
+  x = runif(20, 0.5, 6.5), # Random x positions
+  y = runif(20, 5, 20),    # Random y positions
+  color = sample(colors(), 20)
+)
+
+# Plot 1: Bar Chart with Numbers ------------------------------------------
+bar_chart <- ggplot(bar_data, aes(x = factor(x), y = Count, fill = Category)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  geom_text(aes(label = paste0(Count, "%"), y = Count / 2), # Place numbers at centroid
+            size = 6, fontface = "bold", color = "black") +
+  scale_fill_manual(values = bar_data$Color) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Plot 2: World Map -------------------------------------------------------
+map_plot <- ggplot(world_map, aes(x = long, y = lat, group = group, fill = Classification)) +
+  geom_polygon(color = "white") +
+  scale_fill_manual(values = c(
+    "Ally" = "#117733",
+    "Competitor" = "#CC6677",
+    "Neutral" = "#88CCEE",
+    "Other Supplier" = "#9467BD",
+    "Not a Supplier" = "lightgrey"
+  )) +
+  theme_void() +
+  theme(legend.position = "none")
+
+# Overlay Words -----------------------------------------------------------
+words_plot <- ggplot() +
+  geom_text(data = words_data, 
+            aes(x = x, y = y, label = word, color = color), 
+            size = 6, fontface = "bold", angle = sample(c(-30, 0, 30), 20, replace = TRUE)) +
+  scale_color_identity() +
+  theme_void()
+
+# Combine Plots -----------------------------------------------------------
+grid.arrange(
+  bar_chart,
+  map_plot,
+  words_plot,
+  ncol = 1,
+  heights = c(3, 3, 1)
+)
+
+```
+
+
+
+
