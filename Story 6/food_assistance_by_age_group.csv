@@ -1,0 +1,18 @@
+﻿group,Age_Group,Total_Number,Total_Percent,TANF_Number,TANF_Percent,SNAP_Number,SNAP_Percent
+age,0 to 5 years,23300,31.9,498,30.3,4495,32.6
+age,6 to 11 years,24390,33.4,592,36.0,4761,34.5
+age,12 to 17 years,25260,34.6,555,33.7,4525,32.8
+age,18-24 years,28900,11.4,128,17.2,2683,11.4
+age,25-44 years,86470,34.2,437,58.7,8617,36.5
+age,45-64 years,81860,32.4,159,21.4,7988,33.9
+age,65 years and older,55430,21.9,20,2.7,4298,18.2
+free or reduced school meal,5 to 11 years,"28,320",52.5,"16,340",55.5,"14,410",56.5
+free or reduced school meal,12 to 14 years,"12,500",23.2,"6,967",23.7,"5,944",23.3
+free or reduced school meal,15 to 18 years,"13,070",24.3,"6,110",20.8,"5,168",20.3
+region,Northeast,22580,17.2,160,17.0,3332,18.9
+region,Midwest,28470,21.6,138,14.6,3404,19.3
+region,South,50800,38.6,316,33.6,7193,40.9
+region,West,29720,22.6,327,34.8,3667,20.8
+poverty status,Less than 50% of poverty threshold,6383,4.9,131,14.0,2627,14.9
+poverty status,Less than 100% of poverty threshold,14220,10.8,321,34.2,6912,39.3
+poverty status,Less than 150% of poverty threshold,23640,18.0,543,57.8,10380,59.0
